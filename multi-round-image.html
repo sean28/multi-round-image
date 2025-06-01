@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rounded Multi-Image Board</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;text-align:center;background:linear-gradient(135deg, #1277c9 0%, #1277c95a 100%);color:#fff;min-height:100vh;padding:40px 20px;display:flex;flex-direction:column;align-items:center;}
+    .container{max-width:1200px;width:100%;}
+    header{margin-bottom:5px;}
+    h1{font-size:2.8rem;margin-bottom:5px;text-shadow:0 2px 4px rgba(0,0,0,0.3);}
+    .subtitle{font-size:1.2rem;opacity:0.9;max-width:600px;margin:0 auto 25px; margin-bottom: 10px;}
+    .app-container{display:flex;flex-wrap:nowrap;gap:30px;justify-content:center;margin-top:20px;}
+    .controls-panel{background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border-radius:16px;padding:25px;box-shadow:0 8px 32px rgba(0,0,0,0.2);min-width:300px;flex:1;max-width:400px;display:flex;flex-direction:column;gap:20px;}
+    .control-group{text-align:left;}
+    .control-group h3{font-size:1.2rem;margin-bottom:15px;display:flex;align-items:center;gap:8px;}
+    .control-group h3 i{font-size:1.4rem;}
+    .controls{display:flex;flex-direction:column;gap:15px;}
+    .control-row{display:flex;justify-content:space-between;align-items:center;}
+    label{font-weight:500;font-size:1rem;}
+    input[type="range"]{width:100%;height:8px;border-radius:4px;background:rgba(255,255,255,0.2);outline:none;-webkit-appearance:none;}
+    input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.3);}
+    select,button,.file-label{width:100%;padding:14px;border:none;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;transition:all 0.3s ease;outline:none;}
+    select{background:rgba(255,255,255,0.9);color:#333;background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");background-repeat:no-repeat;background-position:right 1rem center;background-size:1em;padding-right:3rem;}
+    button{background:linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);color:#333;box-shadow:0 4px 15px rgba(250,208,196,0.4);display:flex;align-items:center;justify-content:center;gap:10px;}
+    button:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(250,208,196,0.6);}
+    button:active{transform:translateY(1px);}
+    .file-label{background:rgba(255,255,255,0.9);color:#333;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;}
+    .file-label:hover{background:rgba(255,255,255,1);}
+    #upload{display:none;}
+    #canvasWrapper{position:relative;width:800px;height:755px;min-width:500px;min-height:500px;resize: both; overflow: auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 15px 35px rgba(0,0,0,0.25);flex-shrink:0;border:none;}
+    .image-container{position:absolute;cursor:move;user-select:none;transform-origin:center center;}
+    .draggable{width:100%;height:100%;border-radius:16px;box-shadow:0 8px 25px rgba(0,0,0,0.25);transition:box-shadow 0.3s ease;object-fit:contain;}
+    .selected{outline:3px solid #4a90e2;box-shadow:0 8px 30px rgba(0,0,0,0.35),0 0 0 2px rgba(74,144,226,0.5);z-index:10;}
+    .resize-handle{position:absolute;width:20px;height:20px;background:#4a90e2;border-radius:50%;bottom:-10px;right:-10px;cursor:nwse-resize;z-index:11;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid white;}
+    .rotate-handle{position:absolute;width:20px;height:20px;background:#ff6b6b;border-radius:50%;top:-10px;right:-10px;cursor:grab;z-index:11;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid white;}
+    .lock-aspect{position:absolute;width:20px;height:20px;background:#32cd32;border-radius:50%;top:-10px;left:-10px;cursor:pointer;z-index:11;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:12px;color:white;}
+    .empty-state{position:absolute;top:50%;left:50%;transform:translate(-50%, -50%);text-align:center;color:rgba(255,255,255,0.7);font-size:1.2rem;max-width:80%;}
+    .empty-state i{font-size:3rem;margin-bottom:15px;display:block;color:rgba(255,255,255,0.5);}
+    .size-indicator{position:absolute;bottom:-30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:12px;white-space:nowrap;display:none;}
+    .image-info{position:absolute;top:-30px;left:0;background:rgba(0,0,0,0.7);color:white;padding:4px 10px;border-radius:12px;font-size:12px;white-space:nowrap;display:none;}
+    @media (max-width:1100px){.app-container{flex-direction:column;align-items:center;}.controls-panel{max-width:800px;width:100%;}}
+    @media (max-width:850px){#canvasWrapper{width:100%;height:500px;}}
+    @media (max-width:500px){h1{font-size:2.2rem;}.subtitle{font-size:1rem;}#canvasWrapper{height:400px;}}
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Rounded Multi-Image Board</h1>
+      <p class="subtitle">Create unique compositions</p>
+    </header>
+    <div id="canvasSizeDisplay" style="margin-top: 5px; font-size: 14px; color: #fff;"></div>
+
+    <div class="app-container">
+      <div class="controls-panel">
+        <div class="control-group">
+          <h3><i class="fas fa-upload"></i> Upload Images</h3>
+          <label for="upload" class="file-label">
+            <i class="fas fa-folder-open"></i> Choose Images
+            <input type="file" id="upload" accept="image/*" multiple>
+          </label>
+        </div>
+
+        <div class="control-group">
+          <h3><i class="fas fa-palette"></i> Background</h3>
+          <div class="controls">
+            <select id="background">
+              <option value="white">White</option>
+              <option value="dark">Dark</option>
+              <option value="transparent">Transparent</option>
+              <option value="wood">Wood Texture</option>
+              <option value="paper">Paper Texture</option>
+              <option value="gradient">Gradient</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3><i class="fas fa-crop-alt"></i> Image Settings</h3>
+          <div class="controls">
+            <div class="control-row">
+              <label for="radius">Border Radius:</label>
+              <span id="radiusValue">0px</span>
+            </div>
+            <input type="range" id="radius" min="0" max="50" value="0">
+
+            <div class="control-row">
+              <label for="opacity">Opacity:</label>
+              <span id="opacityValue">100%</span>
+            </div>
+            <input type="range" id="opacity" min="30" max="100" value="100">
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3><i class="fas fa-magic"></i> Tools</h3>
+          <div class="controls">
+            <button id="arrange">
+              <i class="fas fa-th"></i> Arrange Images
+            </button>
+            <button id="clear">
+              <i class="fas fa-trash-alt"></i> Clear All
+            </button>
+            <button id="download">
+              <i class="fas fa-download"></i> Download Composition
+            </button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3><i class="fas fa-info-circle"></i> Instructions</h3>
+          <div class="controls" style="gap:8px;">
+            <div class="instruction">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="resize-handle" style="position:static;width:16px;height:16px;"></div>
+                <span>Drag to resize</span>
+              </div>
+            </div>
+            <div class="instruction">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="rotate-handle" style="position:static;width:16px;height:16px;"></div>
+                <span>Drag to rotate</span>
+              </div>
+            </div>
+            <div class="instruction">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="lock-aspect" style="position:static;width:16px;height:16px;"><i class="fas fa-lock"></i></div>
+                <span>Toggle aspect ratio lock</span>
+              </div>
+            </div>
+            <div class="instruction">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <i class="fas fa-keyboard"></i>
+                <span>Delete: Remove selected</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="canvasWrapper">
+        <div class="empty-state">
+          <i class="fas fa-cloud-upload-alt"></i>
+          <p>Upload images to get started</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+  // DOM Elements
+  const upload = document.getElementById('upload');
+  const canvasWrapper = document.getElementById('canvasWrapper');
+  const background = document.getElementById('background');
+  const radiusInput = document.getElementById('radius');
+  const radiusValue = document.getElementById('radiusValue');
+  const opacityInput = document.getElementById('opacity');
+  const opacityValue = document.getElementById('opacityValue');
+  const downloadBtn = document.getElementById('download');
+  const clearBtn = document.getElementById('clear');
+  const arrangeBtn = document.getElementById('arrange');
+
+  let activeElement = null;
+  let activeHandle = null;
+  let offsetX = 0, offsetY = 0;
+  let startX, startY, startWidth, startHeight, startAngle;
+  let images = [];
+  let isDragging = false;
+  let isResizing = false;
+  let isRotating = false;
+  let lockAspectRatio = true;
+
+  // Update radius and opacity
+  radiusInput.addEventListener('input', () => {
+    radiusValue.textContent = `${radiusInput.value}px`;
+    updateImageStyles();
+  });
+
+  opacityInput.addEventListener('input', () => {
+    opacityValue.textContent = `${opacityInput.value}%`;
+    updateImageStyles();
+  });
+
+  // Background selector
+  background.addEventListener('change', () => {
+    if (background.value === 'gradient') {
+      canvasWrapper.style.background = 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)';
+    } else if (background.value === 'dark') {
+      canvasWrapper.style.background = '#000000';
+    } else if (background.value === 'transparent') {
+      canvasWrapper.style.background = 'transparent';
+    } else if (background.value === 'wood') {
+      canvasWrapper.style.background = '#deb887';
+      canvasWrapper.style.backgroundSize = 'auto';
+    } else if (background.value === 'paper') {
+      canvasWrapper.style.background = '#f0f0f0';
+      canvasWrapper.style.backgroundSize = 'auto';
+    } else {
+      canvasWrapper.style.background = 'white';
+    }
+  });
+
+  // Image upload
+  upload.addEventListener('change', e => {
+    const files = e.target.files;
+    if (files.length === 0) return;
+
+    const emptyState = canvasWrapper.querySelector('.empty-state');
+    if (emptyState) emptyState.remove();
+
+    for (let file of files) {
+      const url = URL.createObjectURL(file);
+
+      const container = document.createElement('div');
+      container.className = 'image-container';
+
+      const img = document.createElement('img');
+      img.src = url;
+      img.className = 'draggable';
+
+      const resizeHandle = document.createElement('div');
+      resizeHandle.className = 'resize-handle';
+      resizeHandle.title = "Drag to resize";
+
+      const rotateHandle = document.createElement('div');
+      rotateHandle.className = 'rotate-handle';
+      rotateHandle.title = "Drag to rotate";
+
+      const lockHandle = document.createElement('div');
+      lockHandle.className = 'lock-aspect';
+      lockHandle.title = "Click to lock/unlock aspect ratio";
+      lockHandle.innerHTML = '<i class="fas fa-lock"></i>';
+
+      const sizeIndicator = document.createElement('div');
+      sizeIndicator.className = 'size-indicator';
+
+      const imageInfo = document.createElement('div');
+      imageInfo.className = 'image-info';
+
+      container.appendChild(img);
+      container.appendChild(resizeHandle);
+      container.appendChild(rotateHandle);
+      container.appendChild(lockHandle);
+      container.appendChild(sizeIndicator);
+      container.appendChild(imageInfo);
+
+      img.onload = function () {
+        img.style.borderRadius = `${radiusInput.value}px`;
+        img.style.opacity = `${opacityInput.value / 100}`;
+
+        const maxInitialSize = Math.min(canvasWrapper.clientWidth, canvasWrapper.clientHeight) * 0.4;
+        const aspectRatio = img.naturalWidth / img.naturalHeight;
+
+        let initialWidth, initialHeight;
+        if (aspectRatio > 1) {
+          initialWidth = Math.min(maxInitialSize, img.naturalWidth);
+          initialHeight = initialWidth / aspectRatio;
+        } else {
+          initialHeight = Math.min(maxInitialSize, img.naturalHeight);
+          initialWidth = initialHeight * aspectRatio;
+        }
+
+        container.style.width = `${initialWidth}px`;
+        container.style.height = `${initialHeight}px`;
+
+        const maxOffset = 30;
+        const left = (canvasWrapper.clientWidth - initialWidth) / 2 + (Math.random() * maxOffset * 2 - maxOffset);
+        const top = (canvasWrapper.clientHeight - initialHeight) / 2 + (Math.random() * maxOffset * 2 - maxOffset);
+
+        container.style.left = `${Math.max(0, Math.min(left, canvasWrapper.clientWidth - initialWidth))}px`;
+        container.style.top = `${Math.max(0, Math.min(top, canvasWrapper.clientHeight - initialHeight))}px`;
+
+        canvasWrapper.appendChild(container);
+        images.push(container);
+
+        setupDragEvents(container, resizeHandle, rotateHandle, lockHandle);
+        updateSizeIndicator(container);
+        updateImageInfo(container, file);
+      };
+    }
+  });
+
+  // Setup events for drag, resize, rotate
+  function setupDragEvents(container, resizeHandle, rotateHandle, lockHandle) {
+    container.addEventListener('mousedown', startDrag);
+    container.addEventListener('touchstart', startDrag, { passive: false });
+    resizeHandle.addEventListener('mousedown', startResize);
+    resizeHandle.addEventListener('touchstart', startResize, { passive: false });
+    rotateHandle.addEventListener('mousedown', startRotate);
+    rotateHandle.addEventListener('touchstart', startRotate, { passive: false });
+    lockHandle.addEventListener('click', toggleAspectRatio);
+  }
+
+  function toggleAspectRatio(e) {
+    e.stopPropagation();
+    const container = this.parentElement;
+    lockAspectRatio = !lockAspectRatio;
+    if (lockAspectRatio) {
+      this.innerHTML = '<i class="fas fa-lock"></i>';
+      this.style.background = '#32cd32';
+    } else {
+      this.innerHTML = '<i class="fas fa-lock-open"></i>';
+      this.style.background = '#ff6b6b';
+    }
+  }
+  
+
+    // Dragging logic
+  function startDrag(e) {
+    if (e.target.className.includes('handle')) return;
+    e.stopPropagation();
+    if (e.type === 'touchstart') e.preventDefault();
+    selectImage(this);
+    activeElement = this;
+    isDragging = true;
+    const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+    const rect = this.getBoundingClientRect();
+    offsetX = clientX - rect.left;
+    offsetY = clientY - rect.top;
+    document.addEventListener('mousemove', dragElement);
+    document.addEventListener('touchmove', dragElement, { passive: false });
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchend', endDrag);
+  }
+
+  function dragElement(e) {
+    if (!activeElement || !isDragging) return;
+    if (e.type === 'touchmove') e.preventDefault();
+    const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+    const canvasRect = canvasWrapper.getBoundingClientRect();
+    let x = clientX - canvasRect.left - offsetX;
+    let y = clientY - canvasRect.top - offsetY;
+    const maxX = canvasWrapper.clientWidth - activeElement.offsetWidth;
+    const maxY = canvasWrapper.clientHeight - activeElement.offsetHeight;
+    activeElement.style.left = `${Math.min(Math.max(0, x), maxX)}px`;
+    activeElement.style.top = `${Math.min(Math.max(0, y), maxY)}px`;
+    updateSizeIndicator(activeElement);
+  }
+
+  function endDrag() {
+    isDragging = false;
+    activeElement = null;
+    document.removeEventListener('mousemove', dragElement);
+    document.removeEventListener('touchmove', dragElement);
+    document.removeEventListener('mouseup', endDrag);
+    document.removeEventListener('touchend', endDrag);
+  }
+
+  function startResize(e) {
+    e.stopPropagation();
+    if (e.type === 'touchstart') e.preventDefault();
+    activeElement = this.parentElement;
+    activeHandle = this;
+    isResizing = true;
+    selectImage(activeElement);
+    const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+    const rect = activeElement.getBoundingClientRect();
+    startX = clientX;
+    startY = clientY;
+    startWidth = rect.width;
+    startHeight = rect.height;
+    document.addEventListener('mousemove', resizeElement);
+    document.addEventListener('touchmove', resizeElement, { passive: false });
+    document.addEventListener('mouseup', endResize);
+    document.addEventListener('touchend', endResize);
+  }
+
+  function resizeElement(e) {
+    if (!activeElement || !isResizing) return;
+    if (e.type === 'touchmove') e.preventDefault();
+    const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+    const deltaX = clientX - startX;
+    const deltaY = clientY - startY;
+    let newWidth = Math.max(50, startWidth + deltaX);
+    let newHeight;
+    if (lockAspectRatio) {
+      const aspectRatio = startWidth / startHeight;
+      newHeight = newWidth / aspectRatio;
+    } else {
+      newHeight = Math.max(50, startHeight + deltaY);
+    }
+    activeElement.style.width = `${newWidth}px`;
+    activeElement.style.height = `${newHeight}px`;
+    updateSizeIndicator(activeElement);
+  }
+
+  function endResize() {
+    isResizing = false;
+    activeElement = null;
+    activeHandle = null;
+    document.removeEventListener('mousemove', resizeElement);
+    document.removeEventListener('touchmove', resizeElement);
+    document.removeEventListener('mouseup', endResize);
+    document.removeEventListener('touchend', endResize);
+  }
+
+  function startRotate(e) {
+    e.stopPropagation();
+    if (e.type === 'touchstart') e.preventDefault();
+    activeElement = this.parentElement;
+    activeHandle = this;
+    isRotating = true;
+    selectImage(activeElement);
+    const rect = activeElement.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+    startAngle = Math.atan2(clientY - centerY, clientX - centerX);
+    const style = window.getComputedStyle(activeElement);
+    const transform = style.transform;
+    let currentRotation = 0;
+    if (transform && transform !== 'none') {
+      const values = transform.split('(')[1].split(')')[0].split(',');
+      const a = values[0];
+      const b = values[1];
+      currentRotation = Math.round(Math.atan2(b, a) * (180 / Math.PI));
+    }
+    startAngle -= currentRotation * (Math.PI / 180);
+    document.addEventListener('mousemove', rotateElement);
+    document.addEventListener('touchmove', rotateElement, { passive: false });
+    document.addEventListener('mouseup', endRotate);
+    document.addEventListener('touchend', endRotate);
+  }
+
+  function rotateElement(e) {
+    if (!activeElement || !isRotating) return;
+    if (e.type === 'touchmove') e.preventDefault();
+    const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+    const rect = activeElement.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const angle = Math.atan2(clientY - centerY, clientX - centerX) - startAngle;
+    const degrees = angle * (180 / Math.PI);
+    activeElement.style.transform = `rotate(${degrees}deg)`;
+  }
+
+  function endRotate() {
+    isRotating = false;
+    activeElement = null;
+    activeHandle = null;
+    document.removeEventListener('mousemove', rotateElement);
+    document.removeEventListener('touchmove', rotateElement);
+    document.removeEventListener('mouseup', endRotate);
+    document.removeEventListener('touchend', endRotate);
+  }
+
+  function updateSizeIndicator(container) {
+    const indicator = container.querySelector('.size-indicator');
+    const width = Math.round(container.offsetWidth);
+    const height = Math.round(container.offsetHeight);
+    indicator.textContent = `${width} × ${height} px`;
+    indicator.style.display = 'block';
+    clearTimeout(indicator.timeout);
+    indicator.timeout = setTimeout(() => {
+      indicator.style.display = 'none';
+    }, 5000);
+  }
+
+  function updateImageInfo(container, file) {
+      const info = container.querySelector('.image-info');
+      const img = container.querySelector('img');
+
+      info.textContent = `${img.naturalWidth}×${img.naturalHeight} - ${formatFileSize(file.size)}`;
+      setTimeout(() => {
+        info.style.display = 'none';
+      }, 1000);
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' bytes';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    else return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  function selectImage(el) {
+    document.querySelectorAll('.image-container').forEach(container => {
+      container.classList.remove('selected');
+    });
+    el.classList.add('selected');
+    const info = el.querySelector('.image-info');
+    if (info) {
+      info.style.display = 'block';
+      setTimeout(() => {
+        if (el.classList.contains('selected')) {
+          info.style.display = 'none';
+        }
+      }, 1000);
+    }
+  }
+  function updateCanvasSizeDisplay() {
+    const width = Math.round(canvasWrapper.clientWidth);
+    const height = Math.round(canvasWrapper.clientHeight);
+    document.getElementById('canvasSizeDisplay').textContent = `Canvas Size: ${width}px × ${height}px`;
+  }
+  function updateImageStyles() {
+    document.querySelectorAll('.draggable').forEach(img => {
+      img.style.borderRadius = `${radiusInput.value}px`;
+      img.style.opacity = `${opacityInput.value / 100}`;
+    });
+  }
+  updateCanvasSizeDisplay();
+  const observer = new ResizeObserver(updateCanvasSizeDisplay);
+  observer.observe(canvasWrapper);
+
+  downloadBtn.addEventListener('click', () => {
+    document.querySelectorAll('.resize-handle, .rotate-handle, .lock-aspect, .size-indicator, .image-info').forEach(el => {
+      el.style.display = 'none';
+    });
+    html2canvas(canvasWrapper, { backgroundColor: null, useCORS: true }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = 'mini-shots-composition.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      document.querySelectorAll('.resize-handle, .rotate-handle, .lock-aspect').forEach(el => {
+        el.style.display = 'block';
+      });
+    });
+  });
+
+  clearBtn.addEventListener('click', () => {
+    document.querySelectorAll('.image-container').forEach(container => container.remove());
+    images = [];
+    if (!canvasWrapper.querySelector('.empty-state')) {
+      const emptyState = document.createElement('div');
+      emptyState.className = 'empty-state';
+      emptyState.innerHTML = `<i class="fas fa-cloud-upload-alt"></i><p>Upload images to get started</p>`;
+      canvasWrapper.appendChild(emptyState);
+    }
+  });
+
+  arrangeBtn.addEventListener('click', () => {
+    const containers = document.querySelectorAll('.image-container');
+    if (containers.length === 0) return;
+    const cols = Math.ceil(Math.sqrt(containers.length));
+    const rows = Math.ceil(containers.length / cols);
+    const cellWidth = canvasWrapper.clientWidth / cols;
+    const cellHeight = canvasWrapper.clientHeight / rows;
+    containers.forEach((container, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const img = container.querySelector('img');
+      const aspectRatio = img.naturalWidth / img.naturalHeight;
+      let size = aspectRatio > 1 ? Math.min(cellWidth, cellHeight * aspectRatio) * 0.8 : Math.min(cellWidth / aspectRatio, cellHeight) * 0.8;
+      container.style.width = `${size}px`;
+      container.style.height = `${size / aspectRatio}px`;
+      container.style.left = `${col * cellWidth + (cellWidth - size) / 2}px`;
+      container.style.top = `${row * cellHeight + (cellHeight - size / aspectRatio) / 2}px`;
+      container.style.transform = 'rotate(0deg)';
+      updateSizeIndicator(container);
+    });
+  });
+
+  canvasWrapper.addEventListener('mousedown', (e) => {
+    if (e.target === canvasWrapper) {
+      document.querySelectorAll('.image-container').forEach(container => {
+        container.classList.remove('selected');
+      });
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const selected = document.querySelector('.image-container.selected');
+    if (!selected) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      selected.remove();
+      images = images.filter(container => container !== selected);
+    }
+  });
+</script>
+</body>
+</html>
